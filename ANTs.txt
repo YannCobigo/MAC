@@ -1,0 +1,140 @@
+PrintHeader
+
+production de matrices sous forme bianire check_initA0GenericAffine.mat. Pour les convertir dans un format ascii:
+ConvertTransformFile 3 check_initA0GenericAffine.mat check_initA0GenericAffine.mat.txt
+
+#
+# The order of the transforms is stack-esque in that the last transform specified on the command line is the first to be applied.
+-r [ $A, $B, 1 ] 
+-z 1 concaten transformation
+#
+# Transforamtion
+# Affine
+-f: AFFINESHRINKFACTORS="8x4x2x1" -- shricking factor, dans le processus de downsampling.
+-c: AFFINECONVERGENCE="[1000x500x250x100,1e-8,10]" -- 1000 iteration for the 8 voxels downsampling, 500 for the 4 ...
+-s: AFFINESMOOTHINGSIGMAS="3x2x1x0vox"
+-t: transform {affine, rigid, ..., Elast(elastic)}[gradient descent step: ]
+# Rigid
+RIGIDCONVERGENCE="[1000x500x250x100,1e-8,10]"
+RIGIDSHRINKFACTORS="8x4x2x1"
+RIGIDSMOOTHINGSIGMAS="3x2x1x0vox"
+# Diffeo
+SYNCONVERGENCE="[100x70x50x20,1e-8,10]"
+SYNSHRINKFACTORS="8x4x2x1"
+SYNSMOOTHINGSIGMAS="3x2x1x0vox"
+
+#
+# METRIC -> --metric Similarity[fixedImage, movingImage, weight, parameters]
+# weight: nous pouvons appliquer ++ metric, le poids correspond a celui d'une metric par rapport aux autres appliquees durant la meme transformation.
+# different metric choices for the user
+INTMSQ= " -m MSQ[${II},${JJ},1,0] " -- mean squared difference, this metric works for intra-modality image registration. The last parameter 0 is a padding value of no real meaning.
+INTMI = " -m MI[${II},${JJ},1,32] " -- mutual information [fixed, moved, weight, 32-bin square joint histogram] -- works both well for intra-modality and inter-modality image registration.
+ |--> Mattes[fixedImage,movingImage,metricWeight,numberOfBins,<samplingStrategy={None,Regular,Random}>,<samplingPercentage=[0,1]>]
+INTCC = " -m CC[${II},${JJ},1,4]  " -- cross-correlation [fixed, moved, weight, radius] -- intra-modality and some inter-modality image registration. Can be useful for fine scale nonlinear registration step.
+INPSE = " -m PSE[fixedImage,movingImage,fixedPoints,movingPoints,weight,pointSetPercentage,pointSetSigma,boundaryPointsOnly,kNeighborhood,PartialMatchingIterations=100000]
+INJTB = " -m JTB[fixedImage,movingImage,fixedPoints,movingPoints,weight,pointSetPercentage,pointSetSigma,boundaryPointsOnly,kNeighborhood,alpha,meshResolution,splineOrder,numberOfLevels,useAnisotropicCovariances]
+
+
+A=fixed.nii
+B=moved.nii
+AFFINESHRINKFACTORS="8x4x2x1"
+AFFINECONVERGENCE="[1000x500x250x100,1e-8,10]"
+AFFINESMOOTHINGSIGMAS="3x2x1x0vox"
+
+initA=check_initA
+initB=check_initB
+#antsRegistration -d 3 -r [ $A, $B, 1 ]   -m mattes[  $A, $B , 1 , 32, random , 0.1 ]  -t affine[ 0.1 ]  -c  $AFFINECONVERGENCE -s $AFFINESMOOTHINGSIGMAS -f $AFFINESHRINKFACTORS  -o [${initA}]
+antsRegistration -d 3 -r [ $A, $B, 1 ]   -m MI[  $A, $B , 1 , 32 ]  -t affine[ 0.1 ]  -c  $AFFINECONVERGENCE -s $AFFINESMOOTHINGSIGMAS -f $AFFINESHRINKFACTORS  -o [${initA}] -z 1
+antsRegistration -d 3 -r [ $B, $A, 1 ]   -m MI[  $B, $A , 1 , 32 ]  -t affine[ 0.1 ]  -c  $AFFINECONVERGENCE -s $AFFINESMOOTHINGSIGMAS -f $AFFINESHRINKFACTORS  -o [${initB}] -z 1
+
+#
+# Compose MultiTransform
+#
+
+#
+# Output = A x B^-1
+ComposeMultiTransform Dim Output -R Center  A -i B
+-R ${initA}0GenericAffine.mat is used to define the center of the output affine.
+-i inverse
+
+# A_id = A x A^-1 -- center is A
+ComposeMultiTransform 3 check_id.mat -R ${initA}0GenericAffine.mat  ${initA}0GenericAffine.mat -i ${initA}0GenericAffine.mat
+# B_inv = B^-1 -- center is A
+ComposeMultiTransform 3 ${initB}_inv.mat -R ${initA}0GenericAffine.mat -i ${initB}0GenericAffine.mat
+# get the average affine map
+# Avg = (A + B^-1) / 2.
+#AverageAffineTransform 3 check_avg.mat  ${initB}_inv.mat ${initA}0GenericAffine.mat
+AverageAffineTransform 3 check_avg.mat  ${initB}_inv.mat  ${initA}_id.mat 
+# avg_inv = avg^-1
+ComposeMultiTransform 3 check_avg_inv.mat -R ${initA}0GenericAffine.mat -i check_avg.mat
+# get the midpoint affine map
+# Mid = (A_id + Avg) / 2
+AverageAffineTransform 3 check_mid.mat   ${initA}0GenericAffine.mat  check_avg_inv.mat
+
+#
+# My transform
+ComposeMultiTransform 3 T_square_root_inv.mat.txt -R ${initA}0GenericAffine.mat -i T_square_root.mat.txt
+
+
+#
+# this applies, to B, a map from B to midpoint(B,A)
+#antsApplyTransforms -d 3 -i $B -o check_mid.nii.gz -t check_mid.mat -r $A
+antsApplyTransforms -d 3 -i $B -o B_mid.nii.gz -t T_square_root.mat.txt -r $A
+antsApplyTransforms -d 3 -i $A -o A_mid.nii.gz -t T_square_root_inv.mat.txt -r $A
+
+#
+# Remove bias field (N4)
+# -x ${ATROPOS_SEGMENTATION_MASK}
+N4BiasFieldCorrection -d 3 -i $B  -s 2 -c [500x500x500x500, 1.e-08] -b [200] -o B_N4.nii.gz &
+N4BiasFieldCorrection -d 3 -i $A  -s 2 -c [500x500x500x500, 1.e-08] -b [200] -o A_N4.nii.gz &
+antsApplyTransforms -d 3 -i B_N4.nii.gz -o B_N4_mid.nii.gz -t T_square_root.mat.txt -r $A
+antsApplyTransforms -d 3 -i A_N4.nii.gz -o A_N4_mid.nii.gz -t T_square_root_inv.mat.txt -r $A
+
+antsApplyTransforms -d 3 -i c1A_N4.nii -o c1A_N4_mid.nii.gz -t T_square_root_inv.mat.txt -r $A
+antsApplyTransforms -d 3 -i c1B_N4.nii -o c1B_N4_mid.nii.gz -t T_square_root.mat.txt -r $A
+
+nmA=check_A_norm
+nmB=check_B_norm
+nm=check_B_to_A
+nminv=check_A_to_B
+antsRegistration -d 3 -r [check_mid.nii.gz,$A,1]   -m MI[check_mid.nii.gz,$A,1,32] -t affine[ 0.1 ] -c  $AFFINECONVERGENCE -s $AFFINESMOOTHINGSIGMAS -f $AFFINESHRINKFACTORS -o [${nmA},${nmA}_aff.nii.gz]
+antsRegistration -d 3 -r [${nmA}_aff.nii.gz,$B,1]  -m MI[${nmA}_aff.nii.gz,$B,1,32]   -t affine[ 0.1 ] -c  $AFFINECONVERGENCE -s $AFFINESMOOTHINGSIGMAS -f $AFFINESHRINKFACTORS -o [${nmB},${nmB}_aff.nii.gz]
+antsApplyTransforms -d 3 -i $B -o ${nm}_aff.nii.gz -t [ check_initA0GenericAffine.mat, 1 ] -t  check_initB0GenericAffine.mat -r $A
+#
+# Syn: symetric deformation
+#??? antsRegistration -d 3  --initial-fixed-transform check_initB0GenericAffine.mat  --initial-moving-transform check_initA0GenericAffine.mat -m cc[$B,$A,1,4] -t syn[0.25,3,0.5] -c $SYNCONVERGENCE  -s $SYNSMOOTHINGSIGMAS  -f $SYNSHRINKFACTORS  -o [${nminv},${nminv}_diff_symm.nii.gz]
+
+
+#
+# My transformations
+#antsRegistration -d 3  --initial-fixed-transform check_A_norm0GenericAffine.mat  --initial-moving-transform check_B_norm0GenericAffine.mat -m cc[$A,$B,1,4] -t syn[0.1,3,0.01] -c $SYNCONVERGENCE  -s $SYNSMOOTHINGSIGMAS  -f $SYNSHRINKFACTORS  -o [${nm},${nm}_diff_symm.nii.gz]
+#antsApplyTransforms -d 3 -i $B -o ${nm}_diff.nii.gz -t [ $initAmat, 1 ] -t ${nm}1Warp.nii.gz -t  $initBmat -r $A
+#CreateJacobianDeterminantImage $dim ${nm}1Warp.nii.gz ${nm}logjacobian.nii.gz 1 1 
+
+antsRegistration -d 3  --initial-fixed-transform T_square_root_inv.mat.txt --initial-moving-transform T_square_root.mat.txt -m cc[A_N4.nii.gz,B_N4.nii.gz,1,4] -t syn[0.1,3,0.01] -c $SYNCONVERGENCE  -s $SYNSMOOTHINGSIGMAS  -f $SYNSHRINKFACTORS  -o [${nm},${nm}_diff_symm.nii.gz]
+
+# 
+# WARNING: not very good results with:  --initial-fixed-transform and  --initial-moving-transform 
+# better break it down in affine and diffeo
+# 
+
+#c1A_N4_mid.nii
+antsRegistration -d 3  --initial-fixed-transform T_square_root_inv.mat.txt --initial-moving-transform T_square_root.mat.txt -m cc[c1A_N4.nii,c1B_N4.nii,1,4] -t syn[0.1,3,0.01] -c $SYNCONVERGENCE  -s $SYNSMOOTHINGSIGMAS  -f $SYNSHRINKFACTORS  -o [c1${nm},c1${nm}_diff_symm.nii.gz]
+CreateJacobianDeterminantImage 3 c1${nm}1Warp.nii.gz c1${nm}jacobian.nii.gz
+fslmaths c1A_N4_mid.nii.gz -mul c1${nm}jacobian.nii.gz  Vol_B
+fslmaths c1A_N4_mid.nii.gz -sub  Vol_B Delta_vol
+#fslmaths c1A_N4_mid.nii -mul  Delta_vol GM_delta_vol
+
+
+antsApplyTransforms -d 3 -i $B -o ${nm}_diff.nii.gz -t [ $initAmat, 1 ] -t ${nm}1Warp.nii.gz -t  $initBmat -r $A
+
+#CreateJacobianDeterminantImage 3 ${nm}1Warp.nii.gz ${nm}logjacobian.nii.gz 1 1 
+CreateJacobianDeterminantImage 3 ${nm}1Warp.nii.gz ${nm}jacobian.nii.gz
+
+fslmaths A_N4_mid.nii.gz -mul check_B_to_Ajacobian.nii.gz Vol_B
+fslmaths A_N4_mid.nii.gz -sub  Vol_B Delta_vol
+fslmaths c1A_N4_mid.nii -mul  Delta_vol GM_delta_vol
+
+fslmaths check_B_to_Ajacobian.nii.gz -sub 1. jacobian_minus_1
+fslmaths c1A_N4_mid.nii -mul jacobian_minus_1 Delta_vol
+
