@@ -5,7 +5,7 @@ ConvertTransformFile 3 check_initA0GenericAffine.mat check_initA0GenericAffine.m
 
 #
 # The order of the transforms is stack-esque in that the last transform specified on the command line is the first to be applied.
--r [ $A, $B, 1 ] 
+-r [ $A, $B, 1 ] => A is fixed, B moves
 -z 1 concaten transformation
 #
 # Transforamtion
