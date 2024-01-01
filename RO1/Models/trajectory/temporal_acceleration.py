@@ -7,6 +7,7 @@ singlelock = threading.Lock()
 #
 #
 import utils.threader as threader
+import utils.Lagrange as Lagrange
 #
 #
 #
@@ -14,7 +15,7 @@ class acceleration( threader.multi_thread ):
     """
     
     """
-    def __init__( self, Procs, Dataframes = 8 ):
+    def __init__( self, Procs = 8, Dataframes = {} ):
         super( acceleration, self ).__init__( Procs, Dataframes )
         """Return a new Protocol instance (constructor)."""
         try:
@@ -137,10 +138,16 @@ class acceleration( threader.multi_thread ):
                     age = (age - C1) / C2
                     ( c, t ) = self.derivative( vol.values, age.values )
                     ( a, t ) = self.derivative( c, t )
+                    # interpolation
+                    interp = Lagrange.Interpolation( X = age, Y = vol, Delta = C2 )
+                    (x_lagrange, y_lagrange)   = interp.interpolate()
+                    ( c_lagrange, t_lagrange ) = self.derivative( y_lagrange, x_lagrange )
+                    ( a_lagrange, t_lagrange ) = self.derivative( c_lagrange, t_lagrange )
                     #
                     if len(a):
                         singlelock.acquire()
                         self.args_["Ax"].plot( t, a, marker='', color = color, linewidth = 0.6, alpha = 0.3 )
+                        self.args_["Ax"].plot( t_lagrange, a_lagrange, marker='.', color = "purple", linewidth = 0.6, alpha = 0.3 )
                         singlelock.release()
                 elif self.args_["Model"][0] == "DR3":
                     # Age transformation
@@ -172,10 +179,16 @@ class acceleration( threader.multi_thread ):
                     age = (age - C1) / C2
                     ( c, t ) = self.derivative( vol.values, age.values )
                     ( a, t ) = self.derivative( c, t )
+                    # interpolation
+                    interp = Lagrange.Interpolation( X = age, Y = vol, Delta = C2 )
+                    (x_lagrange, y_lagrange)   = interp.interpolate()
+                    ( c_lagrange, t_lagrange ) = self.derivative( y_lagrange, x_lagrange )
+                    ( a_lagrange, t_lagrange ) = self.derivative( c_lagrange, t_lagrange )
                     #
                     if len(a):
                         singlelock.acquire()
                         self.args_["Ax"].plot( t, a, marker='', color = color, linewidth = 0.6, alpha = 0.3 )
+                        self.args_["Ax"].plot( t_lagrange, a_lagrange, marker='.', color = "purple", linewidth = 0.6, alpha = 0.3 )
                         singlelock.release()
                 else:
                     # Age transformation

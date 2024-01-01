@@ -9,7 +9,7 @@ class multi_thread( object ):
     """
     
     """
-    def __init__( self, Procs, Dataframes = 8 ):
+    def __init__( self, Procs = 8, Dataframes = {} ):
         """Return a new Protocol instance (constructor)."""
         try:
             #

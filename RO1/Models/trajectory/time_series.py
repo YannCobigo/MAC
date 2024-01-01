@@ -1,4 +1,4 @@
-#import pdb #pdb.set_trace()
+import pdb #pdb.set_trace()
 import sys, shutil
 import numpy
 import threading, queue, time
@@ -7,6 +7,7 @@ singlelock = threading.Lock()
 #
 #
 import utils.threader as threader
+import utils.Lagrange as Lagrange
 #
 #
 #
@@ -14,7 +15,7 @@ class temporal_sequence( threader.multi_thread ):
     """
     
     """
-    def __init__( self, Procs, Dataframes = 8 ):
+    def __init__( self, Procs = 8, Dataframes = {} ):
         super( temporal_sequence, self ).__init__( Procs, Dataframes )
         """Return a new Protocol instance (constructor)."""
         try:
@@ -125,8 +126,12 @@ class temporal_sequence( threader.multi_thread ):
                     if len( vol ):
                         t1 = numpy.arange(age.values[0], age.values[-1], .01)
                         fit = threader.multi_thread.polynome( self,  t1, [a0.mean(), a1.mean()] )
+                        # interpolation
+                        interp = Lagrange.Interpolation( X = age, Y = vol, Delta = C2 )
+                        (x_lagrange, y_lagrange) = interp.interpolate()
                         singlelock.acquire()
                         self.args_["Ax"].plot( age, vol, marker='.', color = color, linewidth = 0.6, alpha = 0.2 )
+                        self.args_["Ax"].plot( x_lagrange, y_lagrange, marker='.', color = "purple", linewidth = 0.6, alpha = 0.2 )
                         self.args_["Ax"].plot( t1,  fit, marker='', color = color, linewidth = 0.6, alpha = 0.6 )
                         singlelock.release()
                 elif self.args_["Model"][0] == "DR3":
@@ -181,8 +186,12 @@ class temporal_sequence( threader.multi_thread ):
                     if len( vol ):
                         t1 = numpy.arange(age.values[0], age.values[-1], .01)
                         fit = threader.multi_thread.polynome( self,  t1, [a0.mean(), a1.mean(), a2.mean()] )
+                        # interpolation
+                        interp = Lagrange.Interpolation( X = age, Y = vol, Delta = C2 )
+                        (x_lagrange, y_lagrange) = interp.interpolate()
                         singlelock.acquire()
                         self.args_["Ax"].plot( age, vol, marker='.', color = color, linewidth = 0.6, alpha = 0.2 )
+                        self.args_["Ax"].plot( x_lagrange, y_lagrange, marker='.', color = "purple", linewidth = 0.6, alpha = 0.2 )
                         self.args_["Ax"].plot( t1,  fit, marker='', color = color, linewidth = 0.6, alpha = 0.6 )
                         singlelock.release()
                 else:

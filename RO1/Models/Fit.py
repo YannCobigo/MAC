@@ -50,7 +50,7 @@ if __name__ == '__main__':
     # V: 0 - voxel
     # R: 1 - ROI
     # L: 2 - lobe
-    VRL = 0
+    VRL = 2
     # Voxel
     X = 41
     Y = 73

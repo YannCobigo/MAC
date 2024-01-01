@@ -16,8 +16,8 @@ class dataframes( object ):
             # private members
             self.tempo_dirs_ = []
             #
-            # tweackable
-            self.data_        = "/home/cobigo/devel/Python/RO1/Models/Curated/"
+            # tweackables
+            self.data_        = "/home/cobigo/devel/Python/MAC/RO1/Models/Curated/"
             self.data_frames_ = {}
             #
         except Exception as inst:
@@ -63,21 +63,21 @@ class dataframes( object ):
             #
             # Volumes
             print ("Loading v.csv")
-            v         = os.path.join( self.data_, "v.csv" )
+            v         = os.path.join( self.data_, "v_short.csv" )
             print ("Loading std_v.csv")
-            z_v     = os.path.join( self.data_, "std_v.csv" )
+            z_v     = os.path.join( self.data_, "std_v_short.csv" )
             #
             # DR2 trajectography
             print ("Loading model_v_DR2.csv")
-            model_v_DR2  = os.path.join( self.data_, "model_v_DR2.csv" )
+            model_v_DR2  = os.path.join( self.data_, "model_v_DR2_short.csv" )
             print ("Loading model_std_v_DR2.csv")
-            model_z_v_DR2 = os.path.join( self.data_, "model_std_v_DR2.csv" )
+            model_z_v_DR2 = os.path.join( self.data_, "model_std_v_DR2_short.csv" )
             #
             # DR3
             print ("Loading model_v_DR3.csv")
-            model_v_DR3  = os.path.join( self.data_, "model_v_DR3.csv" )
+            model_v_DR3  = os.path.join( self.data_, "model_v_DR3_short.csv" )
             print ("Loading model_std_v_DR3.csv")
-            model_z_v_DR3 = os.path.join( self.data_, "model_std_v_DR3.csv" )
+            model_z_v_DR3 = os.path.join( self.data_, "model_std_v_DR3_short.csv" )
             #
             # Global model DR2
             print ("Loading model_glob_v_DR2.csv")
