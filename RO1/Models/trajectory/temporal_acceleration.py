@@ -147,7 +147,7 @@ class acceleration( threader.multi_thread ):
                     if len(a):
                         singlelock.acquire()
                         self.args_["Ax"].plot( t, a, marker='', color = color, linewidth = 0.6, alpha = 0.3 )
-                        self.args_["Ax"].plot( t_lagrange, a_lagrange, marker='.', color = "purple", linewidth = 0.6, alpha = 0.3 )
+                        self.args_["Ax"].plot( t_lagrange, a_lagrange, marker='.', color = "blue", linewidth = 0.6, alpha = 0.3 )
                         singlelock.release()
                 elif self.args_["Model"][0] == "DR3":
                     # Age transformation
@@ -188,7 +188,7 @@ class acceleration( threader.multi_thread ):
                     if len(a):
                         singlelock.acquire()
                         self.args_["Ax"].plot( t, a, marker='', color = color, linewidth = 0.6, alpha = 0.3 )
-                        self.args_["Ax"].plot( t_lagrange, a_lagrange, marker='.', color = "purple", linewidth = 0.6, alpha = 0.3 )
+                        self.args_["Ax"].plot( t_lagrange, a_lagrange, marker='.', color = "blue", linewidth = 0.6, alpha = 0.3 )
                         singlelock.release()
                 else:
                     # Age transformation
